@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rd-surface</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#111;color:#ddd;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+header{padding:10px 18px;border-bottom:1px solid #222;display:flex;align-items:baseline;gap:12px;flex-shrink:0}
+header h1{font-size:15px;font-weight:600;letter-spacing:.04em}
+header p{font-size:12px;color:#666}
+
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* ---- sidebar ---- */
+.sidebar{width:270px;flex-shrink:0;border-right:1px solid #222;display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-inner{padding:14px;display:flex;flex-direction:column;gap:14px}
+
+.drop-zone{border:2px dashed #2a2a2a;border-radius:8px;padding:20px 12px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;color:#888}
+.drop-zone:hover,.drop-zone.drag-over{border-color:#555;background:#1a1a1a}
+.drop-zone input{display:none}
+#drop-zone-label{font-size:12px;margin-top:4px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.section h3{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#555;margin-bottom:8px}
+
+select{width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:#ddd;padding:6px 8px;border-radius:5px;font-size:13px;cursor:pointer}
+select:focus{outline:1px solid #6c5ce7}
+
+.row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.row label{width:68px;font-size:12px;color:#888;flex-shrink:0}
+.row input[type=range]{flex:1;accent-color:#6c5ce7;height:3px}
+.row .val{width:36px;text-align:right;font-size:12px;font-family:monospace;color:#aaa}
+
+.check-row{display:flex;align-items:center;gap:8px;font-size:12px;color:#888}
+.check-row input{accent-color:#6c5ce7}
+
+.btn{width:100%;padding:9px;border:none;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s,filter .15s;letter-spacing:.02em}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn:not(:disabled):hover{filter:brightness(1.1)}
+.btn-run{background:#6c5ce7;color:#fff}
+.btn-pause{background:#2a2a2a;color:#ddd}
+.btn-download{background:#1d7340;color:#fff;margin-top:4px}
+
+.btn-row{display:flex;gap:8px}
+.btn-row .btn{flex:1}
+
+.progress-track{height:3px;background:#1e1e1e;border-radius:2px;overflow:hidden}
+.progress-bar{height:100%;background:#6c5ce7;width:0%;transition:width .2s}
+
+/* ---- canvas area ---- */
+.canvas-wrap{flex:1;position:relative;overflow:hidden}
+canvas{display:block;width:100%;height:100%}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,10,10,.75);font-size:16px;color:#bbb;pointer-events:none}
+
+/* ---- collapsible section ---- */
+details.section>summary{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#555;margin-bottom:8px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;user-select:none}
+details.section>summary::before{content:'▶';font-size:8px;transition:transform .15s;flex-shrink:0}
+details.section[open]>summary::before{transform:rotate(90deg)}
+details.section>summary::-webkit-details-marker{display:none}
+
+/* ---- status bar ---- */
+.statusbar{padding:6px 16px;border-top:1px solid #1e1e1e;font-size:11px;color:#555;display:flex;gap:24px;flex-shrink:0}
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three":          "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/":  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<header>
+  <h1>rd-surface</h1>
+  <p>Gray-Scott reaction diffusion on 3D meshes</p>
+</header>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-inner">
+
+      <!-- Upload -->
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".obj,.stl">
+        <div>Drop OBJ / STL here<br><small>or click to browse</small></div>
+        <div id="drop-zone-label"></div>
+      </div>
+
+      <!-- Preset -->
+      <div class="section">
+        <h3>Preset</h3>
+        <select id="preset">
+          <option value="coral">Coral (default)</option>
+          <option value="spots">Spots</option>
+          <option value="stripes">Stripes</option>
+          <option value="worms">Worms</option>
+          <option value="maze">Maze</option>
+          <option value="mitosis">Mitosis</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+
+      <!-- GS params -->
+      <div class="section">
+        <h3>Pattern</h3>
+        <div class="row"><label>Feed</label>
+          <input type="range" id="feed" min="0.010" max="0.120" step="0.001" value="0.055">
+          <span class="val" id="feed-val"></span></div>
+        <div class="row"><label>Kill</label>
+          <input type="range" id="kill" min="0.040" max="0.075" step="0.001" value="0.062">
+          <span class="val" id="kill-val"></span></div>
+        <div class="row"><label>Scale</label>
+          <input type="range" id="scale" min="-3" max="2" step="0.25" value="0">
+          <span class="val" id="scale-val"></span></div>
+      </div>
+
+      <!-- Initial conditions -->
+      <details class="section">
+        <summary>Initial conditions</summary>
+        <select id="ic-mode" style="margin-bottom:8px">
+          <option value="blobs">Gaussian blobs</option>
+          <option value="noise">Uniform noise</option>
+        </select>
+        <div class="row"><label>Seeds</label>
+          <input type="range" id="ic-seeds" min="1" max="20" step="1" value="5">
+          <span class="val" id="ic-seeds-val"></span></div>
+        <div class="row"><label>Radius</label>
+          <input type="range" id="ic-radius" min="2" max="40" step="1" value="5">
+          <span class="val" id="ic-radius-val"></span></div>
+      </details>
+
+      <!-- Relief -->
+      <div class="section">
+        <h3>Relief</h3>
+        <div class="row"><label>Depth</label>
+          <input type="range" id="displacement" min="0.5" max="8" step="0.5" value="2">
+          <span class="val" id="displacement-val"></span></div>
+        <div class="check-row">
+          <input type="checkbox" id="symmetric">
+          <label for="symmetric">Symmetric (dark areas recess)</label>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <label>Up axis</label>
+          <select id="up-axis" style="flex:1;padding:4px 6px;font-size:12px;background:#1a1a1a;border:1px solid #2a2a2a;color:#ddd;border-radius:5px">
+            <option value="0">X</option>
+            <option value="1">Y</option>
+            <option value="2" selected>Z</option>
+          </select>
+        </div>
+        <div class="check-row" style="margin-top:6px">
+          <input type="checkbox" id="flat-bottom">
+          <label for="flat-bottom">Flat bottom</label>
+        </div>
+        <div class="row" id="flat-bottom-row" style="display:none;margin-top:4px">
+          <label>Cutoff</label>
+          <input type="range" id="flat-cutoff" min="1" max="30" step="1" value="5">
+          <span class="val" id="flat-cutoff-val"></span>
+        </div>
+      </div>
+
+      <!-- View -->
+      <div class="section">
+        <h3>View</h3>
+        <div class="check-row">
+          <input type="checkbox" id="show-relief">
+          <label for="show-relief">Preview relief (live bumps)</label>
+        </div>
+      </div>
+
+      <!-- Mesh / Simulation -->
+      <div class="section">
+        <h3>Simulation</h3>
+        <div class="row"><label>Faces</label>
+          <input type="range" id="min-faces" min="5000" max="80000" step="1000" value="20000">
+          <span class="val" id="min-faces-val"></span></div>
+        <div class="row"><label>Steps</label>
+          <input type="range" id="max-steps" min="2000" max="30000" step="1000" value="10000">
+          <span class="val" id="max-steps-val"></span></div>
+      </div>
+
+      <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+
+      <!-- Buttons -->
+      <div class="btn-row">
+        <button class="btn btn-run"   id="btn-run"   disabled>Run</button>
+        <button class="btn btn-pause" id="btn-pause" disabled>Pause</button>
+      </div>
+      <button class="btn btn-download" id="btn-download" disabled>Download STL</button>
+
+      <!-- Dev mode -->
+      <div style="border-top:1px solid #1e1e1e;padding-top:10px;margin-top:4px">
+        <div class="check-row">
+          <input type="checkbox" id="dev-mode">
+          <label for="dev-mode" style="color:#555">Developer mode</label>
+        </div>
+      </div>
+
+      <div id="dev-panel" style="display:none">
+        <div class="section">
+          <h3>Mesh quality</h3>
+          <select id="dev-color-mode" style="margin-bottom:8px">
+            <option value="size">Face size</option>
+            <option value="angle">Min angle</option>
+          </select>
+          <div id="dev-color-legend" style="font-size:11px;color:#777;margin-bottom:6px">
+            Color: blue = small · white = mean · red = large
+          </div>
+          <div id="quality-stats" style="font-size:11px;color:#888;line-height:1.8;font-family:monospace"></div>
+        </div>
+        <div class="section" style="border-top:1px solid #1e1e1e;padding-top:10px">
+          <h3>Laplacian limits</h3>
+          <div class="row"><label>Cot max</label>
+            <input type="range" id="cot-max" min="0.5" max="20" step="0.5" value="1">
+            <span class="val" id="cot-max-val"></span></div>
+          <div class="row"><label>Area floor</label>
+            <input type="range" id="area-floor" min="0.1" max="10" step="0.1" value="10">
+            <span class="val" id="area-floor-val"></span></div>
+          <button class="btn btn-pause" id="btn-recompute-lap" style="margin-top:6px" disabled>Recompute Laplacian</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="overlay">Upload a mesh to begin</div>
+  </div>
+</div>
+
+<div class="statusbar">
+  <span id="status-step">—</span>
+  <span id="status-mesh">—</span>
+  <span id="status-remesh" title="remesh source"></span>
+  <span id="status-v">—</span>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+trimesh[easy]
+numpy
+scipy
+polyscope
+pymeshlab
+tqdm
