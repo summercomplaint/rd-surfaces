@@ -13,7 +13,7 @@ export default function Controls({
 
             <div className="btn-row">
                 <button className="btn btn-run" disabled={!canRun} onClick={onRun}>
-                    Run
+                    {stepCount > 0 ? 'Reset' : 'Run'}
                 </button>
                 <button
                     className="btn btn-neutral"

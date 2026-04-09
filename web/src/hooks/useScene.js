@@ -243,7 +243,7 @@ export function useScene(canvasRef, onInit) {
     // -----------------------------------------------------------------------
     // Relief displacement
     // -----------------------------------------------------------------------
-    const updateRelief = useCallback((v, { dispPct, symmetric, upAxis, flatBottom, flatCutoff }) => {
+    const updateRelief = useCallback((v, { dispPct, symmetric, reverse, upAxis, flatBottom, flatCutoff }) => {
         const mesh = meshObjRef.current;
         const origPos = origPosRef.current;
         const nrm = normalsRef.current;
@@ -280,7 +280,8 @@ export function useScene(canvasRef, onInit) {
         const pos = mesh.geometry.attributes.position;
         for (let i = 0; i < v.length; i++) {
             const norm  = softclip((v[i] - vmin) / vspan);
-            const scale = (symmetric ? (2 * norm - 1) : norm) * flatFactor(origPos[3*i + upAxis]);
+            const base  = reverse ? (1 - norm) : norm;
+            const scale = (symmetric ? (2 * base - 1) : base) * flatFactor(origPos[3*i + upAxis]);
             pos.array[3*i]   = origPos[3*i]   + nrm[3*i]   * scale * maxDisp;
             pos.array[3*i+1] = origPos[3*i+1] + nrm[3*i+1] * scale * maxDisp;
             pos.array[3*i+2] = origPos[3*i+2] + nrm[3*i+2] * scale * maxDisp;

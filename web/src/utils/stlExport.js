@@ -5,7 +5,7 @@ import { softclip } from './colormap.js';
  * Compute displaced positions and write a binary STL, returned as a Blob.
  */
 export function buildSTLBlob(origPos, normals, indices, v, {
-    diag, dispPct, symmetric, upAxis, flatBottom, flatCutoff,
+    diag, dispPct, symmetric, reverse, upAxis, flatBottom, flatCutoff,
 }) {
     const maxDisp = diag * dispPct / 100;
 
@@ -41,7 +41,8 @@ export function buildSTLBlob(origPos, normals, indices, v, {
     const dispPos = new Float64Array(origPos);
     for (let i = 0; i < v.length; i++) {
         const norm  = softclip((v[i] - vmin) / vspan);
-        const scale = (symmetric ? (2 * norm - 1) : norm) * flatFactor(origPos[3*i + upAxis]);
+        const base  = reverse ? (1 - norm) : norm;
+        const scale = (symmetric ? (2 * base - 1) : base) * flatFactor(origPos[3*i + upAxis]);
         dispPos[3*i]   += normals[3*i]   * scale * maxDisp;
         dispPos[3*i+1] += normals[3*i+1] * scale * maxDisp;
         dispPos[3*i+2] += normals[3*i+2] * scale * maxDisp;

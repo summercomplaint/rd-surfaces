@@ -1,4 +1,5 @@
 import Slider from './Slider.jsx';
+import CustomSelect from './CustomSelect.jsx';
 
 const PRESETS = {
     coral:   { F: 0.055, k: 0.062 },
@@ -6,7 +7,6 @@ const PRESETS = {
     stripes: { F: 0.060, k: 0.062 },
     worms:   { F: 0.078, k: 0.061 },
     maze:    { F: 0.029, k: 0.057 },
-    mitosis: { F: 0.028, k: 0.053 },
 };
 
 function scaleLabel(s) {
@@ -29,19 +29,20 @@ export default function ParametersSection({ preset, feed, kill, scale, onChange 
     return (
         <div className="section">
             <h3>Parameters</h3>
-            <select
+            <CustomSelect
                 value={preset}
-                onChange={e => applyPreset(e.target.value)}
+                onChange={v => applyPreset(v)}
+                options={[
+                    { value: 'coral',   label: 'Coral (default)' },
+                    { value: 'spots',   label: 'Spots' },
+                    { value: 'stripes', label: 'Stripes' },
+                    { value: 'worms',   label: 'Worms' },
+                    { value: 'maze',    label: 'Maze' },
+                    { value: 'mitosis', label: 'Mitosis' },
+                    { value: 'custom',  label: 'Custom' },
+                ]}
                 style={{ marginBottom: 8 }}
-            >
-                <option value="coral">Coral (default)</option>
-                <option value="spots">Spots</option>
-                <option value="stripes">Stripes</option>
-                <option value="worms">Worms</option>
-                <option value="maze">Maze</option>
-                <option value="mitosis">Mitosis</option>
-                <option value="custom">Custom</option>
-            </select>
+            />
             <Slider label="Feed" min={0.010} max={0.120} step={0.001} value={feed} onChange={handleFeed} />
             <Slider label="Kill" min={0.040} max={0.075} step={0.001} value={kill} onChange={handleKill} />
             <Slider label="Scale" min={-3} max={2} step={0.25} value={scale}

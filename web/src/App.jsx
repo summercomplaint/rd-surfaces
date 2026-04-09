@@ -4,7 +4,6 @@ import './App.css';
 import { useScene }      from './hooks/useScene.js';
 import { useSimulation } from './hooks/useSimulation.js';
 
-import Header             from './components/Header.jsx';
 import FileUpload         from './components/FileUpload.jsx';
 import ParametersSection  from './components/ParametersSection.jsx';
 import InitialConditions  from './components/InitialConditions.jsx';
@@ -13,7 +12,7 @@ import SimulationSection  from './components/SimulationSection.jsx';
 import Controls           from './components/Controls.jsx';
 import DevPanel           from './components/DevPanel.jsx';
 import HelpModal          from './components/HelpModal.jsx';
-import StatusBar          from './components/StatusBar.jsx';
+
 
 // ---------------------------------------------------------------------------
 // Default settings
@@ -33,6 +32,7 @@ const DEFAULTS = {
     // Relief
     dispPct:    2,
     symmetric:  false,
+    reverse:    false,
     upAxis:     2,   // Z
     flatBottom: false,
     flatCutoff: 5,
@@ -207,6 +207,7 @@ export default function App() {
         scene.downloadSTL(sim.simRef.current?.v, {
             dispPct:    s.dispPct,
             symmetric:  s.symmetric,
+            reverse:    s.reverse,
             upAxis:     s.upAxis,
             flatBottom: s.flatBottom,
             flatCutoff: s.flatCutoff,
@@ -232,9 +233,9 @@ export default function App() {
 
     return (
         <div className="app">
-            <Header onHelpOpen={() => setHelpOpen(true)} />
-
             <div className="layout">
+                <button className="help-btn-float" onClick={() => setHelpOpen(true)} title="Help">?</button>
+
                 <div className="sidebar">
                     <div className="sidebar-inner">
 
@@ -255,15 +256,6 @@ export default function App() {
 
                         <InitialConditions
                             icMode={s.icMode} numSeeds={s.numSeeds} blobRadius={s.blobRadius}
-                            onChange={set}
-                        />
-
-                        <hr className="section-divider" />
-
-                        <ReliefSection
-                            dispPct={s.dispPct} symmetric={s.symmetric}
-                            upAxis={s.upAxis} flatBottom={s.flatBottom} flatCutoff={s.flatCutoff}
-                            showRelief={s.showRelief}
                             onChange={set}
                         />
 
@@ -298,18 +290,23 @@ export default function App() {
                     </div>
                 </div>
 
+                <div className="right-panel">
+                    <div className="sidebar-inner">
+                        <ReliefSection
+                            dispPct={s.dispPct} symmetric={s.symmetric} reverse={s.reverse}
+                            upAxis={s.upAxis} flatBottom={s.flatBottom} flatCutoff={s.flatCutoff}
+                            showRelief={s.showRelief}
+                            onChange={set}
+                        />
+                    </div>
+                </div>
+
                 <div className="canvas-wrap">
                     <canvas ref={canvasRef} />
                     {overlayMsg && <div className="overlay">{overlayMsg}</div>}
                 </div>
             </div>
 
-            <StatusBar
-                stepCount={sim.stepCount}
-                maxSteps={s.maxSteps}
-                meshInfo={meshInfo}
-                vStats={sim.vStats}
-            />
 
             {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
         </div>

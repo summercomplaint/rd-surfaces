@@ -1,4 +1,5 @@
 import Slider from './Slider.jsx';
+import CustomSelect from './CustomSelect.jsx';
 
 export default function DevPanel({
     colorMode, cotMax, areaFloor, sizeStats, angleStats,
@@ -13,14 +14,15 @@ export default function DevPanel({
         <div className="dev-panel">
             <div className="section">
                 <h3>Mesh quality</h3>
-                <select
+                <CustomSelect
                     value={colorMode}
-                    onChange={e => onChange({ devColorMode: e.target.value })}
+                    onChange={v => onChange({ devColorMode: v })}
+                    options={[
+                        { value: 'size',  label: 'Face size' },
+                        { value: 'angle', label: 'Min angle' },
+                    ]}
                     style={{ marginBottom: 8 }}
-                >
-                    <option value="size">Face size</option>
-                    <option value="angle">Min angle</option>
-                </select>
+                />
                 <div className="dev-legend">{legend}</div>
                 {stats && <pre className="dev-stats">{stats}</pre>}
             </div>

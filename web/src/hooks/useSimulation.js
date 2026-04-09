@@ -64,6 +64,7 @@ export function useSimulation(scene, settingsRef) {
                 scene.updateRelief(sim.v, {
                     dispPct:    s.dispPct,
                     symmetric:  s.symmetric,
+                    reverse:    s.reverse,
                     upAxis:     s.upAxis,
                     flatBottom: s.flatBottom,
                     flatCutoff: s.flatCutoff,

@@ -1,17 +1,19 @@
 import Slider from './Slider.jsx';
+import CustomSelect from './CustomSelect.jsx';
 
 export default function InitialConditions({ icMode, numSeeds, blobRadius, onChange }) {
     return (
         <details className="section">
             <summary>Initial conditions</summary>
-            <select
+            <CustomSelect
                 value={icMode}
-                onChange={e => onChange({ icMode: e.target.value })}
+                onChange={v => onChange({ icMode: v })}
+                options={[
+                    { value: 'blobs', label: 'Gaussian blobs' },
+                    { value: 'noise', label: 'Uniform noise' },
+                ]}
                 style={{ marginBottom: 8 }}
-            >
-                <option value="blobs">Gaussian blobs</option>
-                <option value="noise">Uniform noise</option>
-            </select>
+            />
             <Slider label="Seeds" min={1} max={20} step={1} value={numSeeds}
                 onChange={v => onChange({ numSeeds: v })}
                 format={v => String(Math.round(v))} />
