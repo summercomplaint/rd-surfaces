@@ -78,7 +78,7 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(result)
         except Exception:
             traceback.print_exc()
-            self.send_error(500, "Remesh failed — see server console")
+            self.send_error(500, "Remesh failed - see server console")
 
 
 if __name__ == "__main__":

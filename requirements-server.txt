@@ -1,4 +1,4 @@
 trimesh
 numpy
 scipy
-pymeshlab
+pymeshlab==2025.7.post1

@@ -101,7 +101,6 @@ def _remesh_isotropic(mesh, target_edge_length, iterations=10):
         )
     except ImportError:
         print("  pymeshlab not installed — falling back to trimesh adaptive subdivision.")
-        print("  For best results: pip install pymeshlab")
         vertices, faces = trimesh.remesh.subdivide_to_size(
             mesh.vertices, mesh.faces,
             max_edge=target_edge_length,

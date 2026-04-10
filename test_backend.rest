@@ -1,0 +1,5 @@
+POST https://rd-surfaces-backend.onrender.com
+Content-Type:application/octet-stream
+X-Filename:Pentagonal_icositetrahedron.obj
+
+< Pentagonal_icositetrahedron.obj
