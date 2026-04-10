@@ -61,7 +61,8 @@ def _remesh_isotropic(mesh, target_edge_length, iterations=10):
     """
     try:
         import pymeshlab
-        print(f"  pymeshlab version: {pymeshlab.__version__}")
+        print(f"  pymeshlab file: {pymeshlab.__file__}")
+        print(f"  pymeshlab version: {getattr(pymeshlab, '__version__', 'unknown')}")
         ms = pymeshlab.MeshSet()
         ms.add_mesh(pymeshlab.Mesh(
             vertex_matrix=mesh.vertices.astype(np.float64),
@@ -78,13 +79,12 @@ def _remesh_isotropic(mesh, target_edge_length, iterations=10):
             tl = pymeshlab.PercentageValue(
                 (target_edge_length / bbox_diag) * 100.0
             )
-        # Method was renamed across pymeshlab versions — try both names.
+        available = [m for m in dir(ms) if 'remesh' in m.lower() or 'isotropic' in m.lower()]
+        print(f"  remesh-related methods: {available}")
         if hasattr(ms, 'meshing_isotropic_explicit_remeshing'):
             ms.meshing_isotropic_explicit_remeshing(iterations=iterations, targetlen=tl)
         else:
-            available = [m for m in dir(ms) if 'remesh' in m.lower() or 'isotropic' in m.lower()]
-            print(f"  meshing_isotropic_explicit_remeshing not found; available: {available}")
-            raise AttributeError("meshing_isotropic_explicit_remeshing")
+            raise AttributeError(f"meshing_isotropic_explicit_remeshing not found; available: {available}")
         # Merge vertices that ended up closer than half the target edge length —
         # this collapses the tiny leftover triangles near sharp features.
         ms.meshing_merge_close_vertices(
