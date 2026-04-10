@@ -17,7 +17,7 @@ export default function InitialConditions({ icMode, numSeeds, blobRadius, onChan
             <Slider label="Seeds" min={1} max={20} step={1} value={numSeeds}
                 onChange={v => onChange({ numSeeds: v })}
                 format={v => String(Math.round(v))} />
-            <Slider label="Radius" min={2} max={40} step={1} value={blobRadius}
+            <Slider label="Radius" min={0.5} max={10} step={0.5} value={blobRadius}
                 onChange={v => onChange({ blobRadius: v })}
                 format={v => `${Math.round(v)}%`} />
         </details>

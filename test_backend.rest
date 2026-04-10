@@ -1,4 +1,4 @@
-POST https://rd-surfaces-backend.onrender.com/remesh
+POST https://rd-surfaces.onrender.com/remesh
 Content-Type:application/octet-stream
 X-Filename:Pentagonal_icositetrahedron.obj
 

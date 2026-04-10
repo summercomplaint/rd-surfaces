@@ -27,8 +27,8 @@ const DEFAULTS = {
     scale:    0,
     // IC
     icMode:     'blobs',
-    numSeeds:   5,
-    blobRadius: 5,   // pct of bbox diag / 100
+    numSeeds:   10,
+    blobRadius: 0.5,   // pct of bbox diag / 100
     // Relief
     dispPct:    2,
     symmetric:  false,
@@ -80,11 +80,15 @@ export default function App() {
     const sim   = useSimulation(scene, settingsRef);
 
     // -----------------------------------------------------------------------
-    // Init Three.js + start RAF loop once the canvas mounts
+    // Init Three.js + start RAF loop once the canvas mounts.
+    // Also ping the remesh server immediately so Render wakes up before the
+    // user uploads a mesh (cold-start takes ~30s on the free tier).
     // -----------------------------------------------------------------------
     useEffect(() => {
         scene.init();
         sim.startLoop();
+        const url = import.meta.env.VITE_REMESH_URL;
+        if (url) fetch(url, { method: 'OPTIONS' }).catch(() => {});
         return () => {
             sim.stopLoop();
             scene.dispose();
@@ -124,7 +128,7 @@ export default function App() {
     // -----------------------------------------------------------------------
     // File handling
     // -----------------------------------------------------------------------
-    const handleFile = useCallback(async (file) => {
+    const handleFile = useCallback(async (file, { skipRemesh = false } = {}) => {
         sim.stop();
         setMeshInfo(null);
         setOverlayMsg('Loading mesh\u2026');
@@ -134,19 +138,18 @@ export default function App() {
             const info = await scene.loadMesh(
                 file, s.minFaces, lapOpts,
                 msg => setOverlayMsg(msg),
-                (controller) => setOverlayMsg(
+                skipRemesh ? undefined : (skipToJS, skipToOriginal) => setOverlayMsg(
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                        <span>Remesh server is starting up&hellip;</span>
-                        <div style={{ display: 'flex', gap: 12 }}>
-                            <span style={{ opacity: 0.6, fontSize: 'var(--font-sm)' }}>Waiting (can take ~30s)</span>
-                            <button
-                                className="btn btn-neutral"
-                                style={{ width: 'auto', padding: '4px 14px' }}
-                                onClick={() => controller.abort()}
-                            >Skip &rarr; JS fallback</button>
+                        <span>Server remeshing&hellip;</span>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-neutral" style={{ width: 'auto', padding: '6px 12px' }}
+                                onClick={skipToJS}>Remesh in browser</button>
+                            <button className="btn btn-neutral" style={{ width: 'auto', padding: '6px 12px' }}
+                                onClick={skipToOriginal}>Use original model</button>
                         </div>
                     </div>
                 ),
+                skipRemesh,
             );
             setMeshInfo(info);
             setOverlayMsg(null);
@@ -169,7 +172,7 @@ export default function App() {
                 const res = await fetch('./utahteapot.stl');
                 if (!res.ok) return;
                 const blob = await res.blob();
-                handleFileRef.current(new File([blob], 'utahteapot.stl'));
+                handleFileRef.current(new File([blob], 'utahteapot.stl'), { skipRemesh: true });
             } catch (e) { /* silently skip if file not served */ }
         }, 200);
         return () => clearTimeout(t);

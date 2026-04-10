@@ -130,33 +130,50 @@ export function useScene(canvasRef, onInit) {
     // -----------------------------------------------------------------------
     // Load mesh
     // -----------------------------------------------------------------------
-    const loadMesh = useCallback(async (file, minFaces, lapOpts = {}, onProgress, onServerSlow) => {
+    const loadMesh = useCallback(async (file, minFaces, lapOpts = {}, onProgress, onServerSlow, skipRemesh = false) => {
         // 1. Raw load
         const raw = await loadMeshFromFile(file);
         rawMeshRef.current = raw;  // store for re-remeshing without re-uploading
 
-        // 2. Remesh — always run so quality cleanup happens even for dense meshes
+        // 2. Remesh
         let mesh, remeshSource;
         const rawFaces = raw.indices.length / 3;
+
+        // skipRemesh: used for pre-meshed assets (e.g. the bundled teapot) that
+        // are already at the right density and don't need server or JS remeshing.
+        if (skipRemesh) {
+            mesh = raw;
+            remeshSource = 'pre-meshed';
+            onProgress?.('Loading pre-meshed model\u2026');
+            await new Promise(r => setTimeout(r, 30));
+        } else {
         onProgress?.(`Remeshing (${rawFaces.toLocaleString()} \u2192 ~${(minFaces/1000).toFixed(0)}k faces)\u2026`);
         await new Promise(r => setTimeout(r, 30));
 
         // Try the Python server. If it doesn't respond in 6 s (e.g. Render cold-start),
         // notify the caller so they can offer a "keep waiting / skip" choice.
-        const controller = new AbortController();
-        const slowTimer = setTimeout(() => onServerSlow?.(controller), 6000);
+        const controller  = new AbortController();
+        const useRawRef   = { current: false };
+        const slowTimer   = setTimeout(() => onServerSlow?.(
+            () => controller.abort(),                                    // skipToJS
+            () => { controller.abort(); useRawRef.current = true; },    // skipToOriginal
+        ), 6000);
         const server = await tryServerRemesh(file, minFaces, controller.signal);
         clearTimeout(slowTimer);
 
         if (server) {
             mesh = server;
             remeshSource = 'Python remesh';
+        } else if (useRawRef.current) {
+            mesh = raw;
+            remeshSource = 'original (unremeshed)';
         } else {
             onProgress?.('Server unavailable \u2014 using JS fallback (quality may be lower)\u2026');
             await new Promise(r => setTimeout(r, 30));
             mesh = remeshForSimulation(raw.positions, raw.indices, minFaces);
             remeshSource = 'JS remesh';
         }
+        } // end skipRemesh else
 
         // 3. Laplacian
         const lap = computeCotangentLaplacian(mesh.positions, mesh.indices, lapOpts);
