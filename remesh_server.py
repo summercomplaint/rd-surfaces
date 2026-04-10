@@ -8,6 +8,7 @@ back a binary STL of the isotropically remeshed result.
 """
 
 import io
+import os
 import sys
 import tempfile
 import traceback
@@ -20,8 +21,8 @@ import trimesh
 sys.path.insert(0, str(Path(__file__).parent))
 from mesh_utils import auto_subdivide, load_mesh
 
-PORT = 5174
-ALLOW_ORIGIN = "*"   # any localhost page can call us
+PORT = int(os.environ.get("PORT", 5174))
+ALLOW_ORIGIN = "*"
 
 
 def remesh_bytes(data: bytes, ext: str, min_faces: int = 12000) -> bytes:
@@ -83,4 +84,4 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     print(f"Remesh server listening on http://localhost:{PORT}")
     print("Press Ctrl-C to stop.\n")
-    HTTPServer(("localhost", PORT), Handler).serve_forever()
+    HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

@@ -19,7 +19,7 @@ import HelpModal          from './components/HelpModal.jsx';
 // ---------------------------------------------------------------------------
 const DEFAULTS = {
     // Upload
-    minFaces: 40000,
+    minFaces: 80000,
     // Pattern
     preset:   'coral',
     feed:     0.055,
@@ -134,6 +134,19 @@ export default function App() {
             const info = await scene.loadMesh(
                 file, s.minFaces, lapOpts,
                 msg => setOverlayMsg(msg),
+                (controller) => setOverlayMsg(
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                        <span>Remesh server is starting up&hellip;</span>
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <span style={{ opacity: 0.6, fontSize: 'var(--font-sm)' }}>Waiting (can take ~30s)</span>
+                            <button
+                                className="btn btn-neutral"
+                                style={{ width: 'auto', padding: '4px 14px' }}
+                                onClick={() => controller.abort()}
+                            >Skip &rarr; JS fallback</button>
+                        </div>
+                    </div>
+                ),
             );
             setMeshInfo(info);
             setOverlayMsg(null);

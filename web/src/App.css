@@ -23,7 +23,7 @@
     --text-primary:   var(--colormap-4); /* main readable text */
     --text-secondary: var(--colormap-4); /* slider values, modal body copy */
     --text-label:     var(--colormap-4);    /* row labels, checkboxes, drop-zone */
-    --text-dim:       var(--colormap-4);    /* section headers, status bar, placeholders */
+    --text-dim:       var(--colormap-3);    /* section headers, status bar, placeholders */
     --text-overlay:   var(--colormap-4);    /* loading overlay message */
 
     /* Overlays */
@@ -60,6 +60,7 @@ html, body, #root { height: 100%; }
 body {
     font-family: 'RD-Coarse', system-ui, -apple-system, sans-serif;
     font-size: var(--font-md);
+    
     background: var(--bg-base);
     color: var(--text-primary);
     overflow: hidden;
@@ -74,11 +75,11 @@ body {
 /* ---- floating help button ---- */
 .help-btn-float {
     position: absolute;
-    top: 12px; right: 244px;
+    top: 12px; right: 264px;
     z-index: 20;
     width: 28px; height: 28px;
     border-radius: 50%;
-    border: 1px solid var(--border-strong);
+    border: 1px solid white;
     background: var(--bg-surface);
     color: var(--text-dim);
     font-size: var(--font-md);
@@ -156,7 +157,7 @@ details.section > summary::-webkit-details-marker { display: none; }
     font-size: var(--font-md); color: var(--text-label);
 }
 .drop-zone:hover, .drop-zone.drag-over { border-color: var(--text-label); background: var(--bg-surface); }
-.drop-zone small { display: block; font-size: var(--font-sm); color: var(--text-dim); margin-top: 2px; }
+.drop-zone small { display: block; font-size: var(--font-sm); color: var(--text-primary); margin-top: 2px; }
 .drop-zone-label { font-size: var(--font-sm); color: var(--text-dim); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- controls ---- */
@@ -204,13 +205,13 @@ details.section > summary::-webkit-details-marker { display: none; }
 }
 .row input[type=range]::-moz-range-progress { background: var(--slider-color); height: 3px; }
 .row input[type=range]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; }
-.row .val { width: 40px; text-align: right; font-size: var(--font-sm); color: var(--text-secondary); }
+.row .val { width: 40px; text-align: left; font-size: var(--font-sm); color: var(--text-secondary); }
 .row .val-clickable { cursor: text; border-bottom: 1px dashed transparent; transition: border-color .15s, color .15s; }
 .row .val-clickable:hover { color: var(--text-primary); border-bottom-color: var(--text-label); }
 .row .val-edit {
-    width: 40px; background: var(--bg-surface); border: 1px solid var(--accent);
+    width: 80px; background: var(--bg-surface); border: 1px solid var(--accent);
     border-radius: 3px; padding: 0 3px; outline: none; color: var(--text-primary);
-    font-size: var(--font-sm);
+    font-size: var(--font-sm); text-align: left;
 }
 
 .check-row { display: flex; align-items: center; gap: 8px; font-size: var(--font-sm); color: var(--text-label); }
@@ -293,6 +294,8 @@ details.section > summary::-webkit-details-marker { display: none; }
 .modal th { text-align: left; color: var(--text-dim); font-weight: 500; padding: 4px 8px; border-bottom: 1px solid var(--bg-raised); }
 .modal td { padding: 4px 8px; color: var(--text-secondary); border-bottom: 1px solid var(--border-subtle); font-family: monospace; }
 .modal td:first-child { color: var(--text-primary); }
+.modal a { color: var(--colormap-3); }
+.modal a:visited { color: var(--colormap-3); }
 
 /* ---- section divider ---- */
 .section-divider { border: none; border-top: 1px solid var(--border-subtle); margin: 0; }

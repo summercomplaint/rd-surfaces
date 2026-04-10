@@ -94,39 +94,53 @@ function surfaceArea(pos, faces) {
 }
 
 function collapseShortEdges(pos, faces, minLen) {
-    const work = pos.slice();
-    const n    = work.length / 3;
-    const par  = new Int32Array(n);
+    const n      = pos.length / 3;
+    const par    = new Int32Array(n);
     for (let i = 0; i < n; i++) par[i] = i;
-    function find(x) {
-        while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; }
-        return x;
-    }
+    function find(x) { while (par[x]!==x){par[x]=par[par[x]];x=par[x];}return x; }
+
     const minLen2 = minLen * minLen;
+    // Collect unique edges and union-find merge short ones.
+    // Crucially: measure the edge using ORIGINAL vertex positions, not root positions.
+    const seen = new Set();
     for (const [i0, i1, i2] of faces) {
         for (const [a, b] of [[i0,i1],[i1,i2],[i0,i2]]) {
-            const ra = find(a), rb = find(b);
-            if (ra === rb) continue;
-            const dx=work[3*ra]-work[3*rb], dy=work[3*ra+1]-work[3*rb+1], dz=work[3*ra+2]-work[3*rb+2];
-            if (dx*dx + dy*dy + dz*dz < minLen2) {
-                work[3*ra]=(work[3*ra]+work[3*rb])/2; work[3*ra+1]=(work[3*ra+1]+work[3*rb+1])/2; work[3*ra+2]=(work[3*ra+2]+work[3*rb+2])/2;
-                par[rb] = ra;
+            const key = a<b ? a*100003+b : b*100003+a;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const dx=pos[3*a]-pos[3*b], dy=pos[3*a+1]-pos[3*b+1], dz=pos[3*a+2]-pos[3*b+2];
+            if (dx*dx+dy*dy+dz*dz < minLen2) {
+                const ra=find(a), rb=find(b);
+                if (ra !== rb) par[rb] = ra;
             }
         }
     }
+
+    // New position for each root = centroid of all original vertices merged into it.
+    const sum  = new Float64Array(n * 3);
+    const cnt  = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+        const r = find(i);
+        sum[3*r]+=pos[3*i]; sum[3*r+1]+=pos[3*i+1]; sum[3*r+2]+=pos[3*i+2];
+        cnt[r]++;
+    }
+
     const newFaces = [];
     for (const [i0, i1, i2] of faces) {
         const r0=find(i0), r1=find(i1), r2=find(i2);
         if (r0!==r1 && r1!==r2 && r0!==r2) newFaces.push([r0,r1,r2]);
     }
+
     const used = new Uint8Array(n);
-    for (const [i0,i1,i2] of newFaces) { used[i0]=1; used[i1]=1; used[i2]=1; }
+    for (const [a,b,c] of newFaces) { used[a]=1; used[b]=1; used[c]=1; }
     const renum = new Int32Array(n).fill(-1);
     const newPos = [];
     for (let i = 0; i < n; i++) {
-        if (used[i]) { renum[i] = newPos.length/3; newPos.push(work[3*i],work[3*i+1],work[3*i+2]); }
+        if (!used[i]) continue;
+        renum[i] = newPos.length / 3;
+        newPos.push(sum[3*i]/cnt[i], sum[3*i+1]/cnt[i], sum[3*i+2]/cnt[i]);
     }
-    return { pos: newPos, faces: newFaces.map(([i0,i1,i2]) => [renum[i0],renum[i1],renum[i2]]) };
+    return { pos: newPos, faces: newFaces.map(([a,b,c]) => [renum[a],renum[b],renum[c]]) };
 }
 
 function subdividePass(pos, faces, threshold) {
@@ -169,31 +183,139 @@ function subdividePass(pos, faces, threshold) {
     return { pos: newPos, faces: newFaces };
 }
 
-function laplacianSmooth(pos, faces, iterations = 5, factor = 0.5) {
+// Tangential Laplacian smoothing — moves vertices toward their neighbor centroid
+// but only in the tangent plane direction, so vertices stay on the surface instead
+// of drifting inward and shrinking the mesh (the flaw in unconstrained smoothing).
+function tangentialSmooth(pos, faces, iterations = 5, factor = 0.5) {
     const n = pos.length / 3;
-    const nbr = Array.from({ length: n }, () => new Set());
-    for (const [i0,i1,i2] of faces) {
-        nbr[i0].add(i1); nbr[i0].add(i2);
-        nbr[i1].add(i0); nbr[i1].add(i2);
-        nbr[i2].add(i0); nbr[i2].add(i1);
-    }
-
     let cur = pos.slice();
+
     for (let iter = 0; iter < iterations; iter++) {
+        // Build adjacency and vertex normals in one pass
+        const adj = Array.from({ length: n }, () => []);
+        const nor = new Float64Array(n * 3);
+
+        for (const [i0, i1, i2] of faces) {
+            adj[i0].push(i1, i2);
+            adj[i1].push(i0, i2);
+            adj[i2].push(i0, i1);
+            const ax=cur[3*i1]-cur[3*i0], ay=cur[3*i1+1]-cur[3*i0+1], az=cur[3*i1+2]-cur[3*i0+2];
+            const bx=cur[3*i2]-cur[3*i0], by=cur[3*i2+1]-cur[3*i0+1], bz=cur[3*i2+2]-cur[3*i0+2];
+            const nx=ay*bz-az*by, ny=az*bx-ax*bz, nz=ax*by-ay*bx;
+            for (const i of [i0, i1, i2]) { nor[3*i]+=nx; nor[3*i+1]+=ny; nor[3*i+2]+=nz; }
+        }
+        for (let i = 0; i < n; i++) {
+            const x=nor[3*i], y=nor[3*i+1], z=nor[3*i+2];
+            const len = Math.sqrt(x*x+y*y+z*z) || 1;
+            nor[3*i]/=len; nor[3*i+1]/=len; nor[3*i+2]/=len;
+        }
+
         const nxt = cur.slice();
         for (let i = 0; i < n; i++) {
-            const nb = nbr[i];
-            if (!nb.size) continue;
-            let cx = 0, cy = 0, cz = 0;
-            for (const j of nb) { cx += cur[3*j]; cy += cur[3*j+1]; cz += cur[3*j+2]; }
-            const k = nb.size;
-            nxt[3*i]   = cur[3*i]   + factor * (cx/k - cur[3*i]);
-            nxt[3*i+1] = cur[3*i+1] + factor * (cy/k - cur[3*i+1]);
-            nxt[3*i+2] = cur[3*i+2] + factor * (cz/k - cur[3*i+2]);
+            // Deduplicate neighbors
+            const seen = new Set(); const nb = [];
+            for (const j of adj[i]) { if (!seen.has(j)) { seen.add(j); nb.push(j); } }
+            if (!nb.length) continue;
+
+            let cx=0, cy=0, cz=0;
+            for (const j of nb) { cx+=cur[3*j]; cy+=cur[3*j+1]; cz+=cur[3*j+2]; }
+            cx/=nb.length; cy/=nb.length; cz/=nb.length;
+
+            // Displacement toward centroid
+            let dx=cx-cur[3*i], dy=cy-cur[3*i+1], dz=cz-cur[3*i+2];
+            // Remove normal component — only move along the tangent plane
+            const nx=nor[3*i], ny=nor[3*i+1], nz=nor[3*i+2];
+            const dot = dx*nx+dy*ny+dz*nz;
+            dx-=dot*nx; dy-=dot*ny; dz-=dot*nz;
+
+            nxt[3*i]   = cur[3*i]   + factor*dx;
+            nxt[3*i+1] = cur[3*i+1] + factor*dy;
+            nxt[3*i+2] = cur[3*i+2] + factor*dz;
         }
         cur = nxt;
     }
     return cur;
+}
+
+// Edge flipping — for each interior edge shared by two triangles, flip it if
+// doing so reduces the total deviation of vertex valences from the ideal (6).
+// Uses integer edge keys (fast) and runs up to maxPasses per call. Within each
+// pass, faces already flipped this pass are skipped to prevent stale-entry
+// corruption (an earlier flip changes the face, but the edgeMap still has the
+// old opposite-vertex recorded for that face's other edges).
+function flipEdges(pos, faces, maxPasses = 3) {
+    const n = pos.length / 3;
+
+    for (let pass = 0; pass < maxPasses; pass++) {
+        // Rebuild valence and edge map fresh each pass.
+        // Integer keys (u < v ? u*n+v : v*n+u) are ~10× faster than string keys.
+        const valence = new Int32Array(n);
+        for (const [a, b, c] of faces) { valence[a]++; valence[b]++; valence[c]++; }
+
+        const edgeMap = new Map();
+        for (let fi = 0; fi < faces.length; fi++) {
+            const f = faces[fi];
+            for (let i = 0; i < 3; i++) {
+                const u=f[i], v=f[(i+1)%3], w=f[(i+2)%3];
+                const key = u < v ? u * n + v : v * n + u;
+                if (!edgeMap.has(key)) edgeMap.set(key, []);
+                edgeMap.get(key).push({ fi, u, v, opp: w });
+            }
+        }
+
+        let nFlipped = 0;
+        const touchedFaces = new Set();  // faces flipped this pass — edgeMap entries are now stale
+        const newEdgeKeys  = new Set();  // integer keys of edges created this pass
+        for (const [, entries] of edgeMap) {
+            if (entries.length !== 2) continue;
+            const { fi: f0, u, v, opp: a } = entries[0];
+            const { fi: f1, opp: b }        = entries[1];
+            if (a === b) continue;
+
+            // Skip if either face was already flipped this pass — its edgeMap entries are stale.
+            if (touchedFaces.has(f0) || touchedFaces.has(f1)) continue;
+
+            // Skip if the new edge already exists or was just created this pass.
+            const newKey = a < b ? a * n + b : b * n + a;
+            if (edgeMap.has(newKey) || newEdgeKeys.has(newKey)) continue;
+
+            // Flip only if it strictly improves total valence deviation from ideal 6.
+            const dev = x => Math.abs(x - 6);
+            const before = dev(valence[u])+dev(valence[v])+dev(valence[a])+dev(valence[b]);
+            const after  = dev(valence[u]-1)+dev(valence[v]-1)+dev(valence[a]+1)+dev(valence[b]+1);
+            if (after >= before) continue;
+
+            // Verify new triangles are not degenerate and don't flip surface orientation.
+            if (!normalsConsistent(pos, u,v,a, u,a,b)) continue;
+            if (!normalsConsistent(pos, v,u,b, v,b,a)) continue;
+
+            faces[f0] = [u, a, b];
+            faces[f1] = [v, b, a];
+            valence[u]--; valence[v]--;
+            valence[a]++; valence[b]++;
+            touchedFaces.add(f0);
+            touchedFaces.add(f1);
+            newEdgeKeys.add(newKey);
+            nFlipped++;
+        }
+
+        if (nFlipped === 0) break;
+    }
+    return faces;
+}
+
+function triNormal(pos, a, b, c) {
+    const ax=pos[3*b]-pos[3*a], ay=pos[3*b+1]-pos[3*a+1], az=pos[3*b+2]-pos[3*a+2];
+    const bx=pos[3*c]-pos[3*a], by=pos[3*c+1]-pos[3*a+1], bz=pos[3*c+2]-pos[3*a+2];
+    const nx=ay*bz-az*by, ny=az*bx-ax*bz, nz=ax*by-ay*bx;
+    const len = Math.sqrt(nx*nx+ny*ny+nz*nz);
+    return len > 1e-20 ? [nx/len, ny/len, nz/len] : null;
+}
+
+function normalsConsistent(pos, a0,b0,c0, a1,b1,c1) {
+    const n0 = triNormal(pos, a0, b0, c0);
+    const n1 = triNormal(pos, a1, b1, c1);
+    return n0 && n1 && n0[0]*n1[0]+n0[1]*n1[1]+n0[2]*n1[2] > 0;
 }
 
 export function remeshForSimulation(positions, indices, minFaces = 12000) {
@@ -204,23 +326,38 @@ export function remeshForSimulation(positions, indices, minFaces = 12000) {
 
     const area    = surfaceArea(pos, faces);
     const targetH = Math.sqrt(4 * area / (Math.sqrt(3) * minFaces));
-    const splitThr = targetH * 1.4;
-    const collThr  = targetH * 0.6;
+    // Split threshold: edges longer than this get subdivided.
+    // Collapse threshold: MUST be < splitThr/2 (= 2/3·targetH) to avoid
+    // newly-created subdivision edges being immediately collapsed (oscillation).
+    const splitThr = targetH * 4/3;       // 1.33·targetH
+    const collThr  = targetH * 3/8;       // 0.375·targetH  (< 0.667·targetH ✓)
 
     console.log(`[remesh] input: ${faces.length} faces, targetH=${targetH.toFixed(4)}`);
 
-    for (let iter = 0; iter < 8; iter++) {
+    // Phase 1: subdivide-only until all edges are below splitThr.
+    // No interleaved collapse here — interleaving causes split→collapse oscillation
+    // because subdivision produces edges at ~2/3·targetH which exceed collThr.
+    for (let iter = 0; iter < 10; iter++) {
+        const sr = subdividePass(pos, faces, splitThr);
+        if (!sr) break;
+        pos = sr.pos; faces = sr.faces;
+        console.log(`[remesh] split ${iter+1}: ${faces.length} faces`);
+    }
+
+    // Phase 2: collapse very-short slivers, flip for valence, smooth.
+    // collThr is conservative (3/8·targetH) so phase-1 edges (~2/3·targetH) are safe.
+    for (let iter = 0; iter < 5; iter++) {
         const nBefore = faces.length;
         const cr = collapseShortEdges(pos, faces, collThr);
         pos = cr.pos; faces = cr.faces;
-        const sr = subdividePass(pos, faces, splitThr);
-        if (sr) { pos = sr.pos; faces = sr.faces; }
-        pos = laplacianSmooth(pos, faces, 2, 0.5);
-        console.log(`[remesh] iter ${iter+1}: ${faces.length} faces, ${pos.length/3} verts`);
-        if (!sr && Math.abs(faces.length - nBefore) < 10) break;
+        faces = flipEdges(pos, faces);
+        pos = tangentialSmooth(pos, faces, 2, 0.5);
+        console.log(`[remesh] refine ${iter+1}: ${faces.length} faces`);
+        if (Math.abs(faces.length - nBefore) < 10) break;
     }
 
-    pos = laplacianSmooth(pos, faces, 3, 0.5);
+    // Final smoothing pass
+    pos = tangentialSmooth(pos, faces, 5, 0.5);
 
     const outPos = new Float64Array(pos);
     const outIdx = new Uint32Array(faces.length * 3);

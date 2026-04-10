@@ -12,14 +12,15 @@ import { viridisRGB, softclip } from '../utils/colormap.js';
 import { computeSizeQuality, computeAngleQuality } from '../utils/meshQuality.js';
 import { buildSTLBlob, triggerDownload } from '../utils/stlExport.js';
 
-const REMESH_SERVER = 'http://localhost:5174/remesh';
+const REMESH_SERVER = import.meta.env.VITE_REMESH_URL ?? 'http://localhost:5174/remesh';
 
-async function tryServerRemesh(file, minFaces) {
+async function tryServerRemesh(file, minFaces, signal) {
     try {
         const res = await fetch(`${REMESH_SERVER}?faces=${minFaces}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': file.name },
             body: await file.arrayBuffer(),
+            signal,
         });
         if (!res.ok) { console.log('[remesh] server error:', res.status); return null; }
 
@@ -129,20 +130,30 @@ export function useScene(canvasRef, onInit) {
     // -----------------------------------------------------------------------
     // Load mesh
     // -----------------------------------------------------------------------
-    const loadMesh = useCallback(async (file, minFaces, lapOpts = {}, onProgress) => {
+    const loadMesh = useCallback(async (file, minFaces, lapOpts = {}, onProgress, onServerSlow) => {
         // 1. Raw load
         const raw = await loadMeshFromFile(file);
         rawMeshRef.current = raw;  // store for re-remeshing without re-uploading
-        onProgress?.(`Remeshing (${(raw.indices.length/3).toLocaleString()} \u2192 ~${(minFaces/1000).toFixed(0)}k faces)\u2026`);
-        await new Promise(r => setTimeout(r, 30)); // let overlay paint
 
-        // 2. Remesh
-        const server = await tryServerRemesh(file, minFaces);
+        // 2. Remesh — always run so quality cleanup happens even for dense meshes
         let mesh, remeshSource;
+        const rawFaces = raw.indices.length / 3;
+        onProgress?.(`Remeshing (${rawFaces.toLocaleString()} \u2192 ~${(minFaces/1000).toFixed(0)}k faces)\u2026`);
+        await new Promise(r => setTimeout(r, 30));
+
+        // Try the Python server. If it doesn't respond in 6 s (e.g. Render cold-start),
+        // notify the caller so they can offer a "keep waiting / skip" choice.
+        const controller = new AbortController();
+        const slowTimer = setTimeout(() => onServerSlow?.(controller), 6000);
+        const server = await tryServerRemesh(file, minFaces, controller.signal);
+        clearTimeout(slowTimer);
+
         if (server) {
             mesh = server;
             remeshSource = 'Python remesh';
         } else {
+            onProgress?.('Server unavailable \u2014 using JS fallback (quality may be lower)\u2026');
+            await new Promise(r => setTimeout(r, 30));
             mesh = remeshForSimulation(raw.positions, raw.indices, minFaces);
             remeshSource = 'JS remesh';
         }

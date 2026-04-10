@@ -45,7 +45,7 @@ export default function ParametersSection({ preset, feed, kill, scale, onChange 
             />
             <Slider label="Feed" min={0.010} max={0.120} step={0.001} value={feed} onChange={handleFeed} />
             <Slider label="Kill" min={0.040} max={0.075} step={0.001} value={kill} onChange={handleKill} />
-            <Slider label="Scale" min={-3} max={2} step={0.25} value={scale}
+            <Slider label="Scale" min={0} max={2} step={0.25} value={scale}
                 onChange={v => onChange({ scale: v })} format={scaleLabel} />
         </div>
     );

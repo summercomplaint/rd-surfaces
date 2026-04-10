@@ -29,13 +29,15 @@ export default function FileUpload({ onFile, minFaces, onMinFacesChange, onRemes
                 <small>or click to browse</small>
                 {filename && <div className="drop-zone-label">{filename}</div>}
             </div>
+            <div style={{ marginTop: 10 }}>
             <Slider
                 label="Faces"
-                min={5000} max={80000} step={1000}
+                min={20000} max={120000} step={1000}
                 value={minFaces}
                 onChange={onMinFacesChange}
                 format={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : String(v)}
             />
+            </div>
             <button
                 className="btn btn-neutral"
                 style={{ marginTop: 2 }}
