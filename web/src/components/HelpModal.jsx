@@ -38,8 +38,8 @@ export default function HelpModal({ onClose }) {
                         panel and you should be able to get something that lives
                     </li>
                     <li>
-                        If you want to print the whole model, turn on "flat bottom" so it adheres properly to the board. The cutoff determines how
-                        far up the model the pattern is flattened
+                        If you want to print the whole model, turn on "flat bottom" so it adheres properly to the board. The cutoff determines how 
+                        far up the model the pattern is flattened 
                     </li>
                     <li>
                         If you run out of steps and your pattern isn't done forming, you can just increase the number of steps and click "resume!"

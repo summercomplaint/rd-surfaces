@@ -130,7 +130,6 @@ canvas { display: block; width: 100%; height: 100%; }
     display: flex; align-items: center; justify-content: center;
     background: var(--overlay-bg);
     font-size: var(--font-lg); color: var(--text-overlay);
-    pointer-events: none;
 }
 
 /* ---- section ---- */
