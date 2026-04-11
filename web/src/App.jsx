@@ -59,6 +59,8 @@ export default function App() {
     // -----------------------------------------------------------------------
     const [helpOpen,    setHelpOpen]    = useState(false);
     const [devMode,     setDevMode]     = useState(false);
+    const [leftOpen,    setLeftOpen]    = useState(false);
+    const [rightOpen,   setRightOpen]   = useState(false);
     const [meshInfo,    setMeshInfo]    = useState(null);   // { faceCount, vertexCount, remeshSource, sizeStats, angleStats }
     const [overlayMsg,  setOverlayMsg]  = useState('Upload a mesh to begin');
 
@@ -249,10 +251,23 @@ export default function App() {
 
     return (
         <div className="app">
-            <div className="layout">
+            <div className={`layout${rightOpen ? ' right-open' : ''}`}>
                 <button className="help-btn-float" onClick={() => setHelpOpen(true)} title="Help">?</button>
 
-                <div className="sidebar">
+                {/* Backdrop — closes whichever panel is open */}
+                {(leftOpen || rightOpen) && (
+                    <div className="panel-backdrop" onClick={() => { setLeftOpen(false); setRightOpen(false); }} />
+                )}
+
+                {/* Mobile toggle buttons */}
+                <button className="panel-toggle panel-toggle-left" onClick={() => { setLeftOpen(o => !o); setRightOpen(false); }}>
+                    <span>{leftOpen ? '✕' : '☲'}</span>
+                </button>
+                <button className="panel-toggle panel-toggle-right" onClick={() => { setRightOpen(o => !o); setLeftOpen(false); }}>
+                    <span>{rightOpen ? '✕' : '☵'}</span>
+                </button>
+
+                <div className={`sidebar${leftOpen ? ' open' : ''}`}>
                     <div className="sidebar-inner">
 
                         <FileUpload
@@ -306,7 +321,7 @@ export default function App() {
                     </div>
                 </div>
 
-                <div className="right-panel">
+                <div className={`right-panel${rightOpen ? ' open' : ''}`}>
                     <div className="sidebar-inner">
                         <ReliefSection
                             dispPct={s.dispPct} symmetric={s.symmetric} reverse={s.reverse}
